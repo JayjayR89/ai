@@ -30,6 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const addPromptBtn = document.getElementById('add-prompt-btn');
     const promptEnhancerInput = document.getElementById('prompt-enhancer-input');
     const enhancePromptBtn = document.getElementById('enhance-prompt-btn');
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const headerOptions = document.getElementById('header-options');
+    const appsBarToggleBtn = document.getElementById('apps-bar-toggle-btn');
+    const appsBar = document.getElementById('apps-bar');
 
 
     // --- State & Initial Data ---
@@ -575,6 +579,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // App mode buttons
     appBtns.forEach(btn => {
         btn.addEventListener('click', () => setMode(btn.dataset.mode));
+    });
+
+    mobileMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        headerOptions.classList.toggle('visible');
+    });
+
+    appsBarToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        appsBar.classList.toggle('visible');
+    });
+
+    document.addEventListener('click', () => {
+        // Hide mobile menus if they are visible
+        if (headerOptions.classList.contains('visible')) {
+            headerOptions.classList.remove('visible');
+        }
+        if (appsBar.classList.contains('visible')) {
+            appsBar.classList.remove('visible');
+        }
     });
 
     addPromptBtn.addEventListener('click', addCustomPrompt);
