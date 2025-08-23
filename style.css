@@ -327,6 +327,183 @@ body {
 }
 
 
+/* --- Apps Bar --- */
+#apps-bar {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background-color: var(--header-footer-bg);
+    border-top: 1px solid var(--border-color);
+}
+.app-btn {
+    background-color: var(--ai-msg-bg);
+    border: 1px solid transparent;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s ease-in-out;
+    color: var(--text-color);
+}
+.app-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.app-btn.active {
+    border-color: #2ecc71;
+    box-shadow: 0 0 15px rgba(46, 204, 113, 0.7);
+    animation: pulse-green 1.5s infinite;
+}
+
+@keyframes pulse-green {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
+    }
+    70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 10px 15px rgba(46, 204, 113, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
+    }
+}
+
+
+/* --- Generic Modal Styles --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--modal-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001; /* Higher than settings modal */
+}
+.modal-overlay.hidden {
+    display: none;
+}
+.modal-content {
+    background-color: var(--modal-content-bg);
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+.modal-content h2 {
+    margin-bottom: 15px;
+}
+.modal-content .close-modal-btn {
+    margin-top: 15px;
+    align-self: flex-end;
+    padding: 8px 15px;
+}
+#history-list {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+.history-item {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.history-item:hover {
+    background-color: var(--ai-msg-bg);
+}
+.history-item:last-child {
+    border-bottom: none;
+}
+.history-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+.history-date {
+    font-size: 0.8em;
+    opacity: 0.7;
+}
+#tts-input {
+    width: 100%;
+    min-height: 150px;
+    margin-bottom: 10px;
+}
+
+/* --- Prompts Modal Styles --- */
+.prompt-enhancer-section, .prompt-list-section {
+    margin-top: 15px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 15px;
+}
+#prompt-enhancer-input {
+    width: 100%;
+    min-height: 80px;
+    margin-bottom: 10px;
+}
+#add-prompt-form {
+    display: flex;
+    margin-top: 10px;
+}
+#new-prompt-input {
+    flex-grow: 1;
+    margin-right: 10px;
+}
+#prompt-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+.prompt-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+}
+.prompt-item:hover {
+    background-color: var(--ai-msg-bg);
+}
+.prompt-item-actions button {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    margin-left: 8px;
+    opacity: 0.6;
+}
+.prompt-item-actions button:hover {
+    opacity: 1;
+}
+
+
+#ocr-upload-btn {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    z-index: 10;
+}
+
+
+/* --- Code Mode --- */
+#app-container.code-mode #chat-display,
+#app-container.code-mode #user-input {
+    font-family: 'Courier New', Courier, monospace;
+}
+
+
 /* --- Responsive Design --- */
 @media (max-width: 600px) {
     :root {
@@ -342,5 +519,13 @@ body {
     #app-header, #input-area, #chat-display {
         padding-left: 10px;
         padding-right: 10px;
+    }
+    #apps-bar {
+        gap: 5px;
+        padding: 8px 5px;
+    }
+    .app-btn {
+        width: 38px;
+        height: 38px;
     }
 }

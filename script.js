@@ -15,13 +15,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     const tabLinks = document.querySelectorAll('.tab-link');
     const tabContents = document.querySelectorAll('.tab-content');
+    const appContainer = document.getElementById('app-container');
+    const appBtns = document.querySelectorAll('.app-btn');
+    const ocrUploadBtn = document.getElementById('ocr-upload-btn');
+    const historyModal = document.getElementById('history-modal');
+    const historyList = document.getElementById('history-list');
+    const ttsModal = document.getElementById('tts-modal');
+    const ttsInput = document.getElementById('tts-input');
+    const ttsPlayBtn = document.getElementById('tts-play-btn');
+    const closeModalBtns = document.querySelectorAll('.close-modal-btn');
+    const promptsModal = document.getElementById('prompts-modal');
+    const promptList = document.getElementById('prompt-list');
+    const newPromptInput = document.getElementById('new-prompt-input');
+    const addPromptBtn = document.getElementById('add-prompt-btn');
+    const promptEnhancerInput = document.getElementById('prompt-enhancer-input');
+    const enhancePromptBtn = document.getElementById('enhance-prompt-btn');
 
 
     // --- State & Initial Data ---
+    let currentMode = 'chat'; // chat, image, ocr, tts, code, prompts
     let chatHistory = []; // To hold the conversation for the AI
     let activeModels = [];
+    let customPrompts = [];
     let settingsCache = {}; // To handle setting cancellation
     const SETTINGS_KEY = 'ai-chat-app-settings';
+    const HISTORY_KEY = 'ai-chat-history';
+    const PROMPTS_KEY = 'ai-chat-custom-prompts';
+
+    const defaultPrompts = [
+        { title: 'Summarize', text: 'Summarize the following text: ' },
+        { title: 'Translate to French', text: 'Translate the following to French: ' },
+        { title: 'Explain Like I\'m 5', text: 'Explain the following concept like I am 5 years old: ' },
+        { title: 'Act as a Linux Terminal', text: 'I want you to act as a Linux terminal. I will type commands and you will reply with what the terminal should show. I want you to only reply with the terminal output inside one unique code block, and nothing else. Do not write explanations. Do not type commands unless I instruct you to do so. When I need to tell you something in English, I will do so by putting text inside curly brackets {like this}. My first command is pwd.' },
+    ];
 
     const defaultModels = [
         'gpt-5', 'gpt-4.1', 'gpt-4o', 'claude-sonnet-4',
@@ -49,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {object} options - Additional options like modelName
      * @returns {HTMLElement} The created message element
      */
-    const addMessage = (sender, text, options = {}) => {
+    const addMessage = (sender, content, options = {}) => {
         // Use a more robust unique ID
         const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const messageWrapper = document.createElement('div');
@@ -63,30 +89,42 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `${modelName} - ${timestamp}`
             : `${timestamp}`;
 
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'content';
+
+        if (typeof content === 'string') {
+            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+        } else if (content instanceof HTMLElement) {
+            contentDiv.appendChild(content);
+        }
+
         messageWrapper.innerHTML = `
             <div class="meta-info">${metaInfo}</div>
-            <div class="content">${text.replace(/\n/g, '<br>')}</div>
             <div class="actions">
                 <button class="resend-btn" title="Resend">🔄</button>
                 <button class="copy-btn" title="Copy">📋</button>
                 <button class="delete-btn" title="Delete">🗑️</button>
             </div>
         `;
+        messageWrapper.insertBefore(contentDiv, messageWrapper.querySelector('.actions'));
+
 
         chatDisplay.prepend(messageWrapper); // Prepend to add to the top
         chatDisplay.scrollTop = 0; // Scroll to top to see the new message
 
-        // Add event listeners for action buttons (functionality to be added later)
+        // Add event listeners for action buttons
+        const textContent = typeof content === 'string' ? content : content.alt || '';
         messageWrapper.querySelector('.resend-btn').addEventListener('click', () => {
-            userInput.value = text;
-            userInput.focus();
+            if (textContent) {
+                userInput.value = textContent;
+                userInput.focus();
+            }
         });
         messageWrapper.querySelector('.copy-btn').addEventListener('click', () => {
-            navigator.clipboard.writeText(text);
+            if (textContent) navigator.clipboard.writeText(textContent);
         });
         messageWrapper.querySelector('.delete-btn').addEventListener('click', () => {
             messageWrapper.remove();
-            // Also remove from chatHistory if needed (to be implemented)
         });
 
         return messageWrapper;
@@ -99,42 +137,72 @@ document.addEventListener('DOMContentLoaded', () => {
         const prompt = userInput.value.trim();
         if (!prompt) return;
 
-        // Add user message to display and history
-        addMessage('user', prompt);
-        chatHistory.push({ role: 'user', content: prompt });
-        userInput.value = '';
+        if (currentMode === 'chat' || currentMode === 'code') {
+            // Add user message to display and history
+            addMessage('user', prompt);
+            chatHistory.push({ role: 'user', content: prompt });
+            userInput.value = '';
 
-        const selectedModel = modelSelect.value;
-        const aiMessageElement = addMessage('ai', '...', { modelName: selectedModel });
-        const aiContentElement = aiMessageElement.querySelector('.content');
-        aiContentElement.innerHTML = 'Thinking...';
+            const selectedModel = modelSelect.value;
+            const aiMessageElement = addMessage('ai', '...', { modelName: selectedModel });
+            const aiContentElement = aiMessageElement.querySelector('.content');
+            aiContentElement.innerHTML = 'Thinking...';
 
-        let fullResponse = '';
-        try {
-            const stream = await puter.ai.chat(chatHistory, { model: selectedModel, stream: true });
+            let fullResponse = '';
+            try {
+                const stream = await puter.ai.chat(chatHistory, { model: selectedModel, stream: true });
 
-            let firstChunk = true;
-            for await (const part of stream) {
-                if (part.text) {
-                    fullResponse += part.text;
-                    if (firstChunk) {
-                        aiContentElement.innerHTML = ''; // Clear "Thinking..."
-                        firstChunk = false;
+                let firstChunk = true;
+                for await (const part of stream) {
+                    if (part.text) {
+                        fullResponse += part.text;
+                        if (firstChunk) {
+                            aiContentElement.innerHTML = ''; // Clear "Thinking..."
+                            firstChunk = false;
+                        }
+                        aiContentElement.innerHTML = fullResponse.replace(/\n/g, '<br>');
                     }
-                    aiContentElement.innerHTML = fullResponse.replace(/\n/g, '<br>');
                 }
+
+                // Update the message element with the final text for copy/resend
+                aiMessageElement.querySelector('.resend-btn').addEventListener('click', () => { userInput.value = fullResponse; userInput.focus(); });
+                aiMessageElement.querySelector('.copy-btn').addEventListener('click', () => { navigator.clipboard.writeText(fullResponse); });
+
+                chatHistory.push({ role: 'assistant', content: fullResponse });
+
+            } catch (error) {
+                console.error('AI Chat Error:', error);
+                aiContentElement.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                aiContentElement.style.color = '#e74c3c';
             }
+        }
+        // Placeholder for other modes
+        else if (currentMode === 'image') {
+            addMessage('user', prompt);
+            userInput.value = '';
 
-            // Update the message element with the final text for copy/resend
-            aiMessageElement.querySelector('.resend-btn').addEventListener('click', () => { userInput.value = fullResponse; userInput.focus(); });
-            aiMessageElement.querySelector('.copy-btn').addEventListener('click', () => { navigator.clipboard.writeText(fullResponse); });
+            const placeholder = addMessage('ai', 'Generating image...');
+            const contentDiv = placeholder.querySelector('.content');
 
-            chatHistory.push({ role: 'assistant', content: fullResponse });
+            try {
+                // Using testMode=true to avoid using credits during development
+                const imageElement = await puter.ai.txt2img(prompt, true);
+                imageElement.style.maxWidth = '100%';
+                imageElement.style.borderRadius = '10px';
+                imageElement.alt = prompt; // For copy/resend functionality
 
-        } catch (error) {
-            console.error('AI Chat Error:', error);
-            aiContentElement.innerHTML = `<strong>Error:</strong> ${error.message}`;
-            aiContentElement.style.color = '#e74c3c';
+                contentDiv.innerHTML = '';
+                contentDiv.appendChild(imageElement);
+
+                // Re-assign copy/resend for the final content
+                placeholder.querySelector('.resend-btn').addEventListener('click', () => { userInput.value = prompt; userInput.focus(); });
+                placeholder.querySelector('.copy-btn').addEventListener('click', () => { navigator.clipboard.writeText(prompt); });
+
+            } catch (error) {
+                console.error("Image generation error:", error);
+                contentDiv.innerHTML = `<strong>Error generating image:</strong> ${error.message}`;
+                contentDiv.style.color = '#e74c3c';
+            }
         }
     };
 
@@ -264,9 +332,136 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    newChatBtn.addEventListener('click', () => {
+    newChatBtn.addEventListener('click', async () => {
+        await saveChatSession();
         chatDisplay.innerHTML = '';
         chatHistory = [];
+        // Ensure system prompt is re-added if in code mode
+        if (currentMode === 'code') {
+            const codeSystemPrompt = { role: 'system', content: 'You are an expert code generation assistant. Please provide only code in your responses, with minimal explanation unless asked.' };
+            chatHistory.unshift(codeSystemPrompt);
+        }
+    });
+
+    // --- History Feature ---
+
+    const saveChatSession = async () => {
+        // Don't save empty chats or chats with only a system prompt
+        if (chatHistory.length <= 1) {
+            const hasNonSystemMessage = chatHistory.some(msg => msg.role !== 'system');
+            if (!hasNonSystemMessage) return;
+        }
+
+        const history = await puter.kv.get(HISTORY_KEY) || [];
+        const firstUserMessage = chatHistory.find(msg => msg.role === 'user');
+
+        const newSession = {
+            id: Date.now(),
+            title: firstUserMessage ? firstUserMessage.content.substring(0, 40) + '...' : 'Chat Session',
+            messages: chatHistory
+        };
+
+        history.unshift(newSession); // Add to the beginning
+        await puter.kv.set(HISTORY_KEY, history.slice(0, 50)); // Limit to 50 sessions
+    };
+
+    const loadAndDisplayHistory = async () => {
+        const history = await puter.kv.get(HISTORY_KEY) || [];
+        historyList.innerHTML = '';
+
+        if (history.length === 0) {
+            historyList.innerHTML = '<p>No saved chats found.</p>';
+            return;
+        }
+
+        history.forEach(session => {
+            const sessionEl = document.createElement('div');
+            sessionEl.className = 'history-item';
+            sessionEl.innerHTML = `
+                <div class="history-title">${session.title}</div>
+                <div class="history-date">${new Date(session.id).toLocaleString()}</div>
+            `;
+            sessionEl.addEventListener('click', () => {
+                restoreChatSession(session.id, history);
+            });
+            historyList.appendChild(sessionEl);
+        });
+    };
+
+    const restoreChatSession = (sessionId, history) => {
+        const session = history.find(s => s.id === sessionId);
+        if (!session) return;
+
+        chatHistory = session.messages;
+        chatDisplay.innerHTML = ''; // Clear current display
+
+        // Re-add messages from the restored session
+        // Loop backwards to prepend correctly
+        for (let i = chatHistory.length - 1; i >= 0; i--) {
+            const message = chatHistory[i];
+            if (message.role !== 'system') { // Don't display system prompts
+                 addMessage(message.role, message.content);
+            }
+        }
+
+        historyModal.classList.add('hidden');
+    };
+
+
+    // --- Mode Switching Logic ---
+    const setMode = (mode) => {
+        const oldMode = currentMode;
+        currentMode = mode;
+
+        // System prompt for code mode
+        const codeSystemPrompt = { role: 'system', content: 'You are an expert code generation assistant. Please provide only code in your responses, with minimal explanation unless asked.' };
+
+        // Remove system prompt when leaving code mode
+        if (oldMode === 'code') {
+            const firstMessage = chatHistory[0];
+            if (firstMessage && firstMessage.role === 'system') {
+                chatHistory.shift();
+            }
+        }
+
+        // Add system prompt when entering code mode
+        if (currentMode === 'code') {
+            chatHistory.unshift(codeSystemPrompt);
+        }
+
+        // Update active button style
+        appBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+
+        // Toggle visibility of mode-specific UI elements
+        ocrUploadBtn.classList.toggle('hidden', mode !== 'ocr');
+        appContainer.classList.toggle('code-mode', mode === 'code');
+
+        // Handle modal-based modes
+        if (mode === 'history') {
+            loadAndDisplayHistory();
+            historyModal.classList.remove('hidden');
+        } else if (mode === 'tts') {
+            ttsModal.classList.remove('hidden');
+        } else if (mode === 'prompts') {
+            loadAndRenderPrompts();
+            promptsModal.classList.remove('hidden');
+        }
+
+        // Reset to chat mode after opening a modal
+        if (['history', 'tts', 'prompts'].includes(mode)) {
+            setTimeout(() => setMode('chat'), 200);
+        }
+    };
+
+    // --- Event Listeners ---
+    sendBtn.addEventListener('click', handleSendMessage);
+    userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
     });
 
     // Settings panel event listeners
@@ -310,7 +505,163 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Initialization ---
     const init = async () => {
         await loadSettings();
+        setMode('chat'); // Set initial mode
     };
+
+    // --- Prompt Management Logic ---
+    const loadAndRenderPrompts = async () => {
+        customPrompts = await puter.kv.get(PROMPTS_KEY) || [];
+        promptList.innerHTML = '';
+
+        // Render default prompts
+        defaultPrompts.forEach(prompt => {
+            const el = document.createElement('div');
+            el.className = 'prompt-item';
+            el.textContent = prompt.title;
+            el.addEventListener('click', () => {
+                userInput.value = prompt.text;
+                promptsModal.classList.add('hidden');
+                userInput.focus();
+            });
+            promptList.appendChild(el);
+        });
+
+        // Render custom prompts
+        customPrompts.forEach((prompt, index) => {
+            const el = document.createElement('div');
+            el.className = 'prompt-item';
+
+            const textSpan = document.createElement('span');
+            textSpan.textContent = prompt;
+            textSpan.addEventListener('click', () => {
+                userInput.value = prompt;
+                promptsModal.classList.add('hidden');
+                userInput.focus();
+            });
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'prompt-item-actions';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = '🗑️';
+            deleteBtn.title = 'Delete Prompt';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteCustomPrompt(index);
+            });
+
+            actionsDiv.appendChild(deleteBtn);
+            el.appendChild(textSpan);
+            el.appendChild(actionsDiv);
+            promptList.appendChild(el);
+        });
+    };
+
+    const addCustomPrompt = async () => {
+        const newPrompt = newPromptInput.value.trim();
+        if (!newPrompt) return;
+        customPrompts.push(newPrompt);
+        await puter.kv.set(PROMPTS_KEY, customPrompts);
+        newPromptInput.value = '';
+        loadAndRenderPrompts();
+    };
+
+    const deleteCustomPrompt = async (index) => {
+        customPrompts.splice(index, 1);
+        await puter.kv.set(PROMPTS_KEY, customPrompts);
+        loadAndRenderPrompts();
+    };
+
+    // App mode buttons
+    appBtns.forEach(btn => {
+        btn.addEventListener('click', () => setMode(btn.dataset.mode));
+    });
+
+    addPromptBtn.addEventListener('click', addCustomPrompt);
+    newPromptInput.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') addCustomPrompt();
+    });
+
+    enhancePromptBtn.addEventListener('click', async () => {
+        const promptToEnhance = promptEnhancerInput.value.trim();
+        if (!promptToEnhance) return;
+
+        enhancePromptBtn.disabled = true;
+        enhancePromptBtn.textContent = 'Enhancing...';
+
+        try {
+            const enhancerHistory = [
+                { role: 'system', content: 'You are a prompt engineer. Rewrite the following user\'s prompt to be more detailed, clear, and effective for a large language model. Return only the enhanced prompt and nothing else.' },
+                { role: 'user', content: promptToEnhance }
+            ];
+            const response = await puter.ai.chat(enhancerHistory);
+            promptEnhancerInput.value = response.message.content;
+
+        } catch (error) {
+            console.error('Prompt Enhancer Error:', error);
+            promptEnhancerInput.value = `Error: ${error.message}`;
+        } finally {
+            enhancePromptBtn.disabled = false;
+            enhancePromptBtn.textContent = 'Enhance';
+        }
+    });
+
+    ttsPlayBtn.addEventListener('click', async () => {
+        const text = ttsInput.value.trim();
+        if (!text) return;
+
+        ttsPlayBtn.disabled = true;
+        ttsPlayBtn.textContent = 'Synthesizing...';
+
+        try {
+            const audio = await puter.ai.txt2speech(text);
+            ttsPlayBtn.textContent = 'Playing...';
+            audio.play();
+            audio.onended = () => {
+                ttsPlayBtn.disabled = false;
+                ttsPlayBtn.textContent = 'Play';
+            };
+        } catch (error) {
+            console.error('TTS Error:', error);
+            ttsPlayBtn.disabled = false;
+            ttsPlayBtn.textContent = 'Play';
+            // Optionally show an error message to the user
+            ttsInput.value = `Error: ${error.message}`;
+        }
+    });
+
+    ocrUploadBtn.addEventListener('click', async () => {
+        try {
+            const file = await puter.ui.showOpenFilePicker({ accept: 'image/*' });
+            if (!file) return;
+
+            const placeholder = addMessage('ai', `Extracting text from ${file.name}...`);
+            const contentDiv = placeholder.querySelector('.content');
+
+            try {
+                const extractedText = await puter.ai.img2txt(file.path);
+                contentDiv.innerHTML = `<strong>Extracted Text:</strong><br><pre>${extractedText}</pre>`;
+
+                // Update actions for the extracted text
+                placeholder.querySelector('.resend-btn').addEventListener('click', () => { userInput.value = extractedText; userInput.focus(); });
+                placeholder.querySelector('.copy-btn').addEventListener('click', () => { navigator.clipboard.writeText(extractedText); });
+
+            } catch (ocrError) {
+                console.error("OCR Error:", ocrError);
+                contentDiv.innerHTML = `<strong>Error during OCR:</strong> ${ocrError.message}`;
+            }
+        } catch (pickerError) {
+            console.error("File picker error:", pickerError);
+            addMessage('ai', `Could not open file picker: ${pickerError.message}`);
+        }
+    });
+
+    // Generic close modal buttons
+    closeModalBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.closest('.modal-overlay').classList.add('hidden');
+        });
+    });
 
     init();
 });
