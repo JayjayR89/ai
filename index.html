@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puter AI Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://js.puter.com/v2/"></script>
+</head>
+<body>
+    <div id="app-container">
+        <!-- App Header -->
+        <header id="app-header">
+            <button id="new-chat-btn" title="New Chat">➕</button>
+            <select id="model-select"></select>
+            <button id="settings-btn" title="Settings">⚙️</button>
+        </header>
+
+        <!-- Chat Display Area -->
+        <main id="chat-display">
+            <!-- Messages will be dynamically inserted here -->
+        </main>
+
+        <!-- Text Input Area -->
+        <div id="input-area">
+            <textarea id="user-input" placeholder="Type your message here..."></textarea>
+            <button id="send-btn">Send</button>
+        </div>
+
+        <!-- App Footer -->
+        <footer id="app-footer">
+            <p>
+                Created By <a href="https://jayreddin.github.io" target="_blank">Jamie Reddin</a>
+                using <a href="https://puter.com" target="_blank">Puter.com</a> | Version: 1.0
+            </p>
+        </footer>
+    </div>
+
+    <!-- Settings Modal (Hidden by default) -->
+    <div id="settings-modal" class="hidden">
+        <div id="settings-content">
+            <div id="settings-tabs">
+                <button class="tab-link active" data-tab="ui-settings">UI</button>
+                <button class="tab-link" data-tab="ai-settings">AI</button>
+            </div>
+
+            <!-- UI Settings Tab -->
+            <div id="ui-settings" class="tab-content active">
+                <h3>UI Settings</h3>
+                <div class="setting-item">
+                    <label for="theme-select">Theme:</label>
+                    <select id="theme-select">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label for="text-size-slider">Text Size:</label>
+                    <input type="range" id="text-size-slider" min="1" max="100" value="50">
+                    <span id="text-size-value">50%</span>
+                </div>
+            </div>
+
+            <!-- AI Settings Tab -->
+            <div id="ai-settings" class="tab-content">
+                <h3>AI Model Settings</h3>
+                <div id="model-list-container">
+                    <!-- AI models will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div id="settings-footer">
+                <button id="save-settings-btn">Save & Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
